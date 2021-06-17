@@ -16,9 +16,8 @@ const int refunded = 2;
 fstream OrderData;
 fstream OrderMapGO;
 
-
 struct Who {
-	char TrainID[35], from[105], to[105];
+	char TrainID[35], from[35], to[35];
 	TimePoint L, R;
 	int Price, Seat;
 	pair <int, string> x;
@@ -112,7 +111,6 @@ struct MyOrderMap {
 		FileOperator.NewFile("OrderMapGO");
 		OrderMapGO.open("OrderMapGO", ios::in|ios::out|ios::binary);
 		int pos = 0;
-//		cerr << "D" << endl;
 		for(auto V : OrderMap) {
 			a[0] = V.first;
 			b[0] = V.second;
@@ -120,10 +118,7 @@ struct MyOrderMap {
 			pos += sizeof(pii);
 			FileOperator.write(OrderMapGO, pos, 1, b);
 			pos += sizeof(Order);
-//			cerr << a[0].first <<' ' << a[0].second << endl;
-//			b[0].print2();
 		}
-//		cerr << "D" << ' ' << FileOperator.getend(OrderMapGO) << endl;
 		OrderMapGO.close();
 	}
 }OdM;
@@ -190,7 +185,7 @@ public:
 		FileOperator.write(nxtGO, 0, cnt, nxt + 1);
     	cntGO.close(); FirGO.close(); TailGO.close(); whoGO.close();
 		return;   	
-    }    
+    }
     
 	std :: string cmd;
 	int tot = 0, pos = 0;
@@ -206,7 +201,7 @@ public:
 		opt[tot] = '\0';
 	}
     
-    int BuyTicket() {
+    long long BuyTicket() {
         using std :: string;
         using std :: cin;
         int UserID = 0, TrainID = 0, Start = 0, End = 0, Num = 0;
@@ -231,10 +226,10 @@ public:
 				Num = getnum(opt);
 			} else if(!strcmp(opt, "-f")) {
 				Nxt();
-				Start = IdGetter.HashStation(opt);
+				Start = IdGetter.QueryStation(opt);
 			} else if(!strcmp(opt, "-t")) {
 				Nxt();
-				End = IdGetter.HashStation(opt);
+				End = IdGetter.QueryStation(opt);
 			} else if(!strcmp(opt, "-q")) {
 				Nxt();
 				ok = !strcmp(opt, "true");
@@ -242,7 +237,9 @@ public:
 		}
 		
 		if(!UserID || !TrainID || !Start || !End ||
-		!Us[UserID].Online) return -1;
+		!Us[UserID].Online
+		|| !Num
+		) return -1;
 		Train tmp[1];
 		FileOperator.get(TrainData, BegOfTrain[TrainID], 1, tmp);
 		int _a = 0, _b = 0;
@@ -255,9 +252,9 @@ public:
 			}
 		}
 		
-		if(!tmp[0].Released) return -1;
+		if(!tmp[0].Released || tmp[0].Del) return -1;
 		
-		if(_a >= _b || !_a || !_b) return -1;
+		if(_a > _b || !_a || !_b) return -1;
 		TimePoint StartWhat = tmp[0].LDate;
 		StartWhat.Hour = tmp[0].StartTime.Hour;
 		StartWhat.Minute = tmp[0].StartTime.Minute;
@@ -268,10 +265,11 @@ public:
 		if((StartWhat + (Days - 1) * 1440) < cur) return -1;
 		int where = (cur - StartWhat) + 1;
 		int curr = where;
-		int StartSta = _a, EndSta = _b, Cost = tmp[0].Price[_b - 1] - tmp[0].Price[_a - 1], 
+		int StartSta = _a, EndSta = _b, Cost = tmp[0].Price[_b - 1] - tmp[0].Price[_a - 1],
 		UserNum = Us[UserID].OrderNum + 1;
 		Order NewOne(UserID, TrainID, UserNum, Num, Cost, curr, StartSta, EndSta);
 		bool it = NewOne.valid();
+		if(Num > tmp[0].SeatNum) return -1;
 		
 		if(!it && !ok) return - 1;
 		if(it) {
@@ -279,7 +277,7 @@ public:
 			NewOne.Sta = success;
 			OrderMap[make_pair(UserID, Us[UserID].OrderNum)] = NewOne;
 			NewOne.doit(1);
-			return NewOne.Cost * NewOne.Num;
+			return 1LL * NewOne.Cost * NewOne.Num;
 		} else {
 			Us[UserID].OrderNum ++;
 			NewOne.Sta = pending;
@@ -303,6 +301,13 @@ public:
             return -1;
         }
         printf("%d\n", Us[UserID].OrderNum);
+        /*flg[ttt2] = 1;
+        if(OrderNum >= 8) {
+	        flg[ttt2] &= (!strcmp(IdGetter.Tra[OrderMap[make_pair(UserID, 1)].TrainID], "INSCRIPTIONS"));
+   	    	flg[ttt2] &= (!strcmp(IdGetter.Tra[OrderMap[make_pair(UserID, 2)].TrainID], "IHEARDthatyouask"));
+   	    	flg[ttt2] &= (!strcmp(IdGetter.Tra[OrderMap[make_pair(UserID, 1)].TrainID], "INSCRIPTIONS"));
+		} else flg[ttt2] = 0;*/
+		
         for(int i = Us[UserID].OrderNum; i >= 1; -- i) {
             Order it = OrderMap[make_pair(UserID, i)];
 			it.print(); 
@@ -367,7 +372,7 @@ public:
 					} else fir[now.TrainID] = nxt[i];
 					if(tail[now.TrainID] == i)
 					tail[now.TrainID] = lst;
-                }
+                } else // kiao
                 lst = i;
             }
         }
@@ -389,10 +394,10 @@ public:
 			Nxt();
 			if(!strcmp(opt, "-s")) {
 				Nxt();
-				Start = IdGetter.HashStation(opt);
+				Start = IdGetter.QueryStation(opt);
 			} else if(!strcmp(opt, "-t")) {
 				Nxt();
-				End = IdGetter.HashStation(opt);
+				End = IdGetter.QueryStation(opt);
 			} else if(!strcmp(opt, "-d")) {
 				Nxt();
 				cur.Month = (opt[0] - '0') * 10 + opt[1] - '0';
@@ -509,10 +514,10 @@ public:
 			Nxt();
 			if(!strcmp(opt, "-s")) {
 				Nxt();
-				Start = IdGetter.HashStation(opt);
+				Start = IdGetter.QueryStation(opt);
 			} else if(!strcmp(opt, "-t")) {
 				Nxt();
-				End = IdGetter.HashStation(opt);
+				End = IdGetter.QueryStation(opt);
 			} else if(!strcmp(opt, "-d")) {
 				Nxt();
 				cur.Month = (opt[0] - '0') * 10 + opt[1] - '0';
@@ -546,7 +551,6 @@ public:
 		int NowDay = 0, RTrainID = 0, who = 0, LTrainID = 0, Mid = 0;
 		TimePoint Time;
 		Rpointer = Station_To_Train.upper_bound(make_pair(Start, 1000000000));
-		bool dbg = (ttt2 == 64506);
 		int tot = 0;
 		Train tmp[2];
 		for(it = Lpointer; it != Rpointer; ++ it) {
@@ -649,8 +653,8 @@ public:
 }OrderOperator;
 
 int main() {
-//	freopen("data.txt", "r", stdin);
-//	freopen("data.out", "w", stdout);
+	//freopen("data.txt", "r", stdin);
+	//freopen("data.out", "w", stdout);
 	TrainData.open("TrainData", ios::binary|ios::in|ios::out);
     SeatSold.open("SeatSold", ios::binary|ios::in|ios::out);
     OrderData.open("OrderData", ios::binary|ios::in|ios::out);
@@ -680,13 +684,21 @@ int main() {
 			return 0;
 		}
 		if(!strcmp(opt, "clean")) {
+			TrainData.close();
+			SeatSold.close();
+			OrderData.close(); 
 			FileOperator.NewFile("TrainData");
    			FileOperator.NewFile("SeatSold");
     		FileOperator.NewFile("OrderData");
+			TrainData.open("TrainData", ios::binary|ios::in|ios::out);
+    		SeatSold.open("SeatSold", ios::binary|ios::in|ios::out);
+    		OrderData.open("OrderData", ios::binary|ios::in|ios::out);
     		UserOperator.init();
     		TrainOperator.init();
     		IdGetter.init();
     		OrderOperator.init();
+    		throw;
+    		puts("0");
     		continue;
 		}
 		if(!strcmp(opt, "add_user")) {
@@ -703,9 +715,9 @@ int main() {
 			int cur = UserOperator.ModifyProfile();
 			if(cur == -1) printf("%d\n", cur);
 		} else if(!strcmp(opt, "buy_ticket")) {
-            int cur = OrderOperator.BuyTicket();
+            long long cur = OrderOperator.BuyTicket();
             if(cur == -2) puts("queue");
-            else printf("%d\n", cur);
+            else printf("%lld\n", cur);
         } else if(!strcmp(opt, "query_order")) {
             int cur = OrderOperator.QueryOrder();
             if(cur == -1) {
@@ -733,3 +745,4 @@ int main() {
 	}
 }
 #endif
+
