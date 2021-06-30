@@ -41,6 +41,17 @@ struct Order {
 	Num(d), Cost(e), cur(f), StartSta(g), EndSta(h) {
 		Sta = 0;
     }
+    
+	friend bool operator == (Order a, Order b) {
+	    return (a.Sta == b.Sta) &&
+                (a.UserID == b.UserID) &&
+                (a.TrainID == b.TrainID) &&
+                (a.Num == b.Num) &&
+                (a.Cost == b.Cost) &&
+                (a.cur == b.cur)
+                && (a.StartSta == b.StartSta) &&
+                (a.EndSta == b.EndSta);
+	}
         
     bool valid() {
         FileOperator.get(SeatSold, BegOfSold[TrainID] + (cur - 1) * R * sizeof(int), R, Seatsold);
@@ -88,9 +99,10 @@ struct Order {
     }
 };
 
-map < pii, Order > OrderMap;
+//map < pii, Order > OrderMap;
+sjtu::BPtree<pii, Order> OrderMap("order.bpt", "order.data");
 
-struct MyOrderMap {
+/*struct MyOrderMap {
    	pii a[1]; Order b[1];
     	
    	MyOrderMap() {
@@ -121,7 +133,7 @@ struct MyOrderMap {
 		}
 		OrderMapGO.close();
 	}
-}OdM;
+}OdM;*/
 
 fstream FirGO, TailGO, cntGO, whoGO, nxtGO;
 
@@ -145,47 +157,40 @@ public:
     	int tmp[2] = {0};
     	cntGO.open("cntGO", ios::binary|ios::in|ios::out);
     	FirGO.open("FirGO", ios::binary|ios::in|ios::out);
-    	TailGO.open("TailGO", ios::binary|ios::in|ios::out);
-    	whoGO.open("whoGO", ios::binary|ios::in|ios::out);
-    	nxtGO.open("nxtGO", ios::binary|ios::in|ios::out);
 		if(FileOperator.getend(cntGO) < 2) {
 			memset(fir, 0, sizeof(fir));
 			memset(tail, 0, sizeof(tail));
 			cnt = 0;
 			memset(who, 0, sizeof(who));
 			memset(nxt, 0, sizeof(nxt));
+			cntGO.close(); FirGO.close();
 			return;
 		}
 		FileOperator.get(cntGO, 0, 2, tmp);
 		cnt = tmp[0];
 		FileOperator.get(FirGO, 0, tmp[1], fir + 1);
-		FileOperator.get(TailGO, 0, tmp[1], tail + 1);
-		FileOperator.get(whoGO, 0, cnt, who + 1);
-		FileOperator.get(nxtGO, 0, cnt, nxt + 1);
-    	cntGO.close(); FirGO.close(); TailGO.close(); whoGO.close();
+		FileOperator.get(FirGO, tmp[1] * sizeof(int), tmp[1], tail + 1);
+		FileOperator.get(FirGO, tmp[1] * 2 * sizeof(int), cnt, who + 1);
+		FileOperator.get(FirGO, (tmp[1] * 2) * sizeof(int) + cnt * sizeof(pii), cnt, nxt + 1);
+    	cntGO.close(); FirGO.close();
     }
     
     ~Orderoperator() {
     	int tmp[2] = {0};
     	FileOperator.NewFile("cntGO");
     	FileOperator.NewFile("FirGO");
-    	FileOperator.NewFile("TailGO");
-    	FileOperator.NewFile("whoGO");
-    	FileOperator.NewFile("nxtGO");
      	cntGO.open("cntGO", ios::binary|ios::in|ios::out);
     	FirGO.open("FirGO", ios::binary|ios::in|ios::out);
-    	TailGO.open("TailGO", ios::binary|ios::in|ios::out);
-    	whoGO.open("whoGO", ios::binary|ios::in|ios::out);
-    	nxtGO.open("nxtGO", ios::binary|ios::in|ios::out);
 		tmp[0] = cnt; tmp[1] = N - 1;
 		FileOperator.write(cntGO, 0, 2, tmp);
-		FileOperator.write(FirGO, 0, N - 1, fir + 1);
-		FileOperator.write(TailGO, 0, N - 1, tail + 1);
-		FileOperator.write(whoGO, 0, cnt, who + 1);
-		FileOperator.write(nxtGO, 0, cnt, nxt + 1);
-    	cntGO.close(); FirGO.close(); TailGO.close(); whoGO.close();
+		FileOperator.write(FirGO, 0, tmp[1], fir + 1);
+		FileOperator.write(FirGO, tmp[1] * sizeof(int), tmp[1], tail + 1);
+		FileOperator.write(FirGO, tmp[1] * 2 * sizeof(int), cnt, who + 1);
+		FileOperator.write(FirGO, (tmp[1] * 2) * sizeof(int) + cnt * sizeof(pii), cnt, nxt + 1);
+    	cntGO.close(); FirGO.close();
 		return;   	
     }
+
     
 	std :: string cmd;
 	int tot = 0, pos = 0;
@@ -273,15 +278,20 @@ public:
 		
 		if(!it && !ok) return - 1;
 		if(it) {
+			cerr << UserID <<' ' << TrainID << ' ' << Start << ' ' << End << ' ' << Us[UserID].OrderNum << endl;
 			Us[UserID].OrderNum ++;
 			NewOne.Sta = success;
-			OrderMap[make_pair(UserID, Us[UserID].OrderNum)] = NewOne;
+			sjtu::BPtree<pii, Order>::value_type a(make_pair(UserID, Us[UserID].OrderNum), NewOne);
+			OrderMap.insert(a);
+			cerr << UserID <<' ' << TrainID << ' ' << Start << ' ' << End << ' ' << Us[UserID].OrderNum << endl;
+//			OrderMap[make_pair(UserID, Us[UserID].OrderNum)] = NewOne;
 			NewOne.doit(1);
 			return 1LL * NewOne.Cost * NewOne.Num;
 		} else {
 			Us[UserID].OrderNum ++;
 			NewOne.Sta = pending;
-			OrderMap[make_pair(UserID, Us[UserID].OrderNum)] = NewOne;
+			sjtu::BPtree<pii, Order>::value_type a(make_pair(UserID, Us[UserID].OrderNum), NewOne);
+			OrderMap.insert(a);
 			who[++ cnt] = make_pair(UserID, Us[UserID].OrderNum);
 			if(!fir[TrainID]) {
 				fir[TrainID] = tail[TrainID] = cnt;
@@ -296,6 +306,7 @@ public:
     int QueryOrder() {
         scanf("%s", opt);
         scanf("%s", opt);
+        
         int UserID = IdGetter.getUser(opt);
         if(!UserID || !Us[UserID].Online) {
             return -1;
@@ -309,7 +320,9 @@ public:
 		} else flg[ttt2] = 0;*/
 		
         for(int i = Us[UserID].OrderNum; i >= 1; -- i) {
-            Order it = OrderMap[make_pair(UserID, i)];
+        	std::vector < sjtu :: BPtree <pii, Order>::value_type > ans = OrderMap.find(make_pair(UserID, i)); 
+            Order it = ans[0].second;
+            if(!it.TrainID) cerr << UserID << endl;
 			it.print(); 
 		}
         return 0;
@@ -337,7 +350,11 @@ public:
             return -1;
         }
         cnt = Us[UserID].OrderNum - cnt + 1;
-        Order now = OrderMap[make_pair(UserID, cnt)];
+        
+		Order now;
+		std::vector < sjtu :: BPtree <pii, Order>::value_type > ans = OrderMap.find(make_pair(UserID, cnt)); 
+		now = ans[0].second;
+		
         if(now.Sta == refunded) {
             return -1;
         }
@@ -354,19 +371,26 @@ public:
                 }
                 lst = i;
             }
+            
             now.Sta = refunded;
-            OrderMap[make_pair(UserID, cnt)] = now;
+			sjtu::BPtree<pii, Order>::value_type a(make_pair(UserID, cnt), now);
+			OrderMap.update(a);
             return 0;
         }
         else {
             now.doit(-1);
             int lst = 0;
             for(int i = fir[now.TrainID]; i; i = nxt[i]) {
-                Order NowElement = OrderMap[who[i]];
+            	std::vector < sjtu :: BPtree <pii, Order>::value_type > ans
+				 = OrderMap.find(who[i]); 
+                Order NowElement = ans[0].second;
+                
                 if(NowElement.valid()) {
                     NowElement.doit(1);
                     NowElement.Sta = success;
-                    OrderMap[who[i]] = NowElement;
+					sjtu::BPtree<pii, Order>::value_type a(who[i], NowElement);
+					OrderMap.update(a);  
+//                    OrderMap[who[i]] = NowElement;
                     if(lst > 0) {
                     	nxt[lst] = nxt[i];
 					} else fir[now.TrainID] = nxt[i];
@@ -377,7 +401,8 @@ public:
             }
         }
         now.Sta = refunded;
-        OrderMap[make_pair(UserID, cnt)] = now;
+		sjtu::BPtree<pii, Order>::value_type a(make_pair(UserID, cnt), now);
+		OrderMap.update(a);
         return 0;
     }
     
@@ -653,8 +678,8 @@ public:
 }OrderOperator;
 
 int main() {
-	//freopen("data.txt", "r", stdin);
-	//freopen("data.out", "w", stdout);
+//	freopen("data.txt", "r", stdin);
+//	freopen("data.out", "w", stdout);
 	TrainData.open("TrainData", ios::binary|ios::in|ios::out);
     SeatSold.open("SeatSold", ios::binary|ios::in|ios::out);
     OrderData.open("OrderData", ios::binary|ios::in|ios::out);
@@ -670,6 +695,24 @@ int main() {
 	OrderData.close(),
 	FileOperator.NewFile("OrderData"), 
 	OrderData.open("OrderData", ios::binary|ios::in|ios::out);
+if(0) {
+			TrainData.close();
+			SeatSold.close();
+			OrderData.close(); 
+			FileOperator.NewFile("TrainData");
+   			FileOperator.NewFile("SeatSold");
+    		FileOperator.NewFile("OrderData");
+    		FileOperator.NewFile("order.bpt");
+    		FileOperator.NewFile("order.data");
+			TrainData.open("TrainData", ios::binary|ios::in|ios::out);
+    		SeatSold.open("SeatSold", ios::binary|ios::in|ios::out);
+    		OrderData.open("OrderData", ios::binary|ios::in|ios::out);
+    		UserOperator.init();
+    		TrainOperator.init();
+    		IdGetter.init();
+    		OrderOperator.init();
+    		return 0;
+}
     char opt[105];
     int tot = 0, ok = 0;
 	ttt2 = 0;
@@ -697,8 +740,6 @@ int main() {
     		TrainOperator.init();
     		IdGetter.init();
     		OrderOperator.init();
-    		throw;
-    		puts("0");
     		continue;
 		}
 		if(!strcmp(opt, "add_user")) {
@@ -745,4 +786,5 @@ int main() {
 	}
 }
 #endif
+
 
